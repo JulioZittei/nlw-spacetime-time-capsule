@@ -1,56 +1,83 @@
-import {User} from 'lucide-react'
-import nlwLogo from '../assets/nlw-spacetime-logo.svg'
-import Image from 'next/image'
+import { EmptyMemories } from "@/components/EmptyMemories";
 
-export default function Home() {
-  return <main className="grid grid-cols-2 min-h-screen">
+import { api } from "@/lib/api";
+import { cookies } from "next/headers";
+import dayjs from "dayjs";
+import ptBR from "dayjs/locale/pt-br";
+import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
-    {/* Left */}
-    <div className="flex flex-col items-start justify-between px-28 py-16 relative overflow-hidden border-r border-white/10 bg-[url(../assets/bg-stars.svg)] bg-cover">
-       {/* Blur */}
-      <div className="absolute right-0 top-1/2 h-[288px] w-[526px] bg-purple-700 -translate-y-1/2 translate-x-1/2 opacity-50 rounded-full blur-full"/>
+dayjs.locale(ptBR);
 
-      {/* Stripes */}
-      <div className="absolute right-2 top-0 bottom-0 w-2 bg-stripes "/>
+export const revalidate = 0;
 
-      {/* Sign In */}
-       <a href="" className="flex items-center gap-3 text-left hover:text-gray-50 transition-colors">
+interface Memory {
+  id: string;
+  coverUrl: string;
+  excerpt: string;
+  createdAt: string;
+}
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-400">
-          <User className="h-5 w-5 text-gray-500" />
-        </div>
+export default async function Home() {
+  const isAuthenticated = cookies().has("token");
 
-        <p className="text-sm leading-snug max-w-[140px]"><span className="underline">Crie sua conta</span> e salve suas memórias!</p>
+  if (!isAuthenticated) {
+    return <EmptyMemories />;
+  }
 
-       </a>
+  const token = cookies().get("token")?.value;
 
-      
-      {/* Hero */}
-      <div className="space-y-5">
-        <Image src={nlwLogo} alt="NLW Spacetime" />
+  const response = await api.get("/memories", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-        <div className="max-w-[420px] space-y-1">
-          <h1 className="text-5xl font-bold leading-tight text-gray-50">Sua cápsula do tempo</h1>
-          <p className="text-lg leading-relaxed">Colecione momentos marcantes da sua jornada e compartilhe (se quiser) com o mundo!</p>
-        </div>
+  // const response = await fetch("http://localhost:3333/memories", {
+  //   next: {
+  //     revalidate: 10,
+  //   },
+  //   cache: 'no-cache',
+  //   headers: {
+  //     Authorization: `Bearer ${token}`,
+  //   },
+  // });
 
-        <a href="" className="inline-block rounded-full bg-green-500 px-5 py-3 font-alt text-sm leading-none text-black uppercase hover:bg-green-600">Cadastrar lembrança</a>
-      </div>
+  const memories: Memory[] = await response.data;
 
-      {/* Copyright */}
-      <div className="text-sm leading-relaxed text-gray-200">
-        Feito com 💜 no NLW da <a target="_blank" rel="noreferrer" className="underline hover:text-gray-100" href="https://rocketseat.com.br">Rocketseat</a>
-      </div>
+  if (memories.length === 0) {
+    return <EmptyMemories />;
+  }
 
+  return (
+    <div className="flex flex-col gap-10 p-8">
+      {memories.map((memory) => {
+        return (
+          <div key={memory.id} className="space-y-4">
+            <time className="-ml-8 flex items-center gap-2 text-sm text-gray-100 before:h-px before:w-5 before:bg-gray-50">
+              {dayjs(memory.createdAt).format("D[ de ]MMMM[, ]YYYY")}
+            </time>
+            <Image
+              src={memory.coverUrl}
+              alt=""
+              width={592}
+              height={280}
+              className="aspect-video w-full rounded-lg object-cover"
+            />
+            <p className="text-lg leading-relaxed text-gray-100">
+              {memory.excerpt}
+            </p>
+            <Link
+              href={`/memories/${memory.id}`}
+              className="flex items-center gap-2 text-sm text-gray-200 hover:text-gray-100"
+            >
+              Ler mais
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        );
+      })}
     </div>
-
-    {/* Right */}
-    <div className="flex flex-col p-16 bg-[url(../assets/bg-stars.svg)]  bg-cover">
-
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-center leading-relaxed w-[360px]">Você ainda não registrou nenhuma lembrança, comece a <a href="" className="underline hover:text-gray-50">criar agora!</a></p>
-      </div>
-
-    </div>
-  </main>
+  );
 }
